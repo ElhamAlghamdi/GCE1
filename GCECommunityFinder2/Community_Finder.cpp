@@ -9,7 +9,7 @@
 #include "Community_Finder.h"
 
 //TIMEKEEPING
-time_t t0 = clock();;
+time_t t0 = clock();
 
 //REPORTING
 #define REPORTING_OUTPUT_FREQUENCY 1000
@@ -100,33 +100,255 @@ void Community_Finder::operator () (const vector<V> & clique) { // V is simply t
 	}
 }
 
+
+// Implementaion of part2 (generate - choose - process constraints) 
+void Community_Finder::ProcessConstraints(){
+        
+    int i=0;
+    int j=1;
+    
+    vector<V> temp(1000000);
+    vector<V> setR(4);
+    set<V> set1;
+    set<V> set2;
+set<V> temp1;
+    bool NotEmpty=false;
+    
+
+    
+    for(vector< set<V> >::iterator eachSet = this->ChosenMust.begin(); eachSet != this->ChosenMust.end(); ++eachSet)
+    {
+        for(vector< set<V> >::iterator eachSet2 = this->ChosenMust.begin()+j; eachSet2 != this->ChosenMust.end(); ++eachSet2)
+        {
+            vector<V>::iterator it;
+            it=set_intersection((*eachSet).begin(), (*eachSet).end(), (*eachSet2).begin(), (*eachSet2).end(), temp.begin());
+            if(!temp.empty())
+            {
+                temp.resize(it-temp.begin());
+                //cerr << "inside !temp.empty() \n";
+
+                set1.insert((*eachSet).begin(), (*eachSet).end());
+                set2.insert((*eachSet2).begin(), (*eachSet2).end());
+                NotEmpty=true;
+                break;
+            }
+        }
+        j++;
+    
+    
+       if(NotEmpty)
+       {
+
+           //cerr << "inside NotEmpty \n";
+
+           vector<V>::iterator it1;
+           it1=set_symmetric_difference(set1.begin(), set1.end(), set2.begin(), set2.end(),setR.begin());
+           setR.resize(it1-setR.begin());
+           temp1.insert(setR.begin(), setR.end());
+           //cerr << "after temp1.insert \n";
+
+           if(IsPaireExist(temp1,this->listCannot)){
+               //cerr << "inside IsPaireExist(temp1,this->listCannot) \n";
+                if(!IsPaireExist(temp1,this->ChosenCannot)){
+                    //cerr << "inside !IsPaireExist(temp1,this->ChosenCannot) \n";
+
+                    this->ChosenCannot.push_back(temp1);
+                
+                }
+            }else if(IsPaireExist(temp1,this->listMust)){
+                //cerr << "inside IsPaireExist(temp1,this->listMust) \n";
+
+                if(!IsPaireExist(temp1,this->ChosenMust)){
+                    //cerr << "inside !IsPaireExist(temp1,this->ChosenMust) \n";
+
+                this->ChosenMust.push_back(temp1);
+                }
+            }
+       }
+      
+    }
+}
+
+inline bool Community_Finder::IsPaireExist(set<V> Pair, vector< set<V> > Constraints){
+    
+    set<V>::iterator it = Pair.begin();
+    advance(it, 0);
+    V FirstNode =*it;
+    
+    advance(it, 1);
+    V SecNode =*it;
+
+    for(vector< set<V> >::iterator eachSet = Constraints.begin(); eachSet != Constraints.end(); ++eachSet)
+    {
+        
+        if(contains(*eachSet,FirstNode) && contains(*eachSet,SecNode))
+        {
+           // cerr << " return true \n" ;
+            return true;
+            
+        }
+    }
+    
+   return false;
+}
+
+void Community_Finder::ChooseConstraints(int percentMust, int percentCannot)
+{
+    int RandM, RandC, counterM=0, counterC=0;
+    int m=listMust.size();
+    int c=listCannot.size();
+    srand (time(NULL));
+
+    while(counterM<percentMust){
+        RandM = rand() % m;
+        //cerr << " RandM : " << RandM ;
+        //cerr << "\n" ;
+        set<V> Must= listMust.at(RandM);
+        //cerr << " IsPaireExist(Must,ChosenMust) "<< IsPaireExist(Must,ChosenMust);
+    if(!IsPaireExist(Must,ChosenMust)){
+        //cerr << " inside if Must : \n" ;
+        ChosenMust.push_back(Must);
+        counterM++;
+    }else{
+   // cerr << " inside else M \n";
+
+    }
+    }
+    
+    while(counterC<percentCannot){
+        RandC = rand() % c;
+       // cerr << " RandC : " << RandC ;
+       // cerr << "\n" ;
+        set<V> Cannot= listCannot.at(RandC);
+    if(!IsPaireExist(Cannot,ChosenCannot)){
+        ChosenCannot.push_back(Cannot);
+        counterC++;
+    }else{
+        
+    }
+    }
+}
+
+void Community_Finder::Combination_CannotLink2(vector<V> vec, vector<V> vec1)
+{
+    vector<V> mm(vec.size()*2);
+    vector<V>::iterator it;
+    
+    sort (vec.begin(),vec.end());
+    sort (vec1.begin(),vec1.end());
+
+    it=set_intersection (vec.begin(), vec.end(), vec1.begin(), vec1.end(), mm.begin());
+    mm.resize(it-mm.begin());
+    
+    for (it=mm.begin(); it!=mm.end(); ++it)
+        std::cout << ' ' << *it;
+    std::cout << '\n';
+    
+    
+    
+    
+    for(vector<V>::iterator it= vec.begin(); it != vec.end(); ++it)
+    {
+        if (find(mm.begin(), mm.end(),(*it))!=mm.end()){
+            continue;
+            
+        }else{
+            
+            for(vector<V>::iterator it1= vec1.begin(); it1 != vec1.end(); ++it1)
+            {
+                if(find(mm.begin(), mm.end(),(*it1))!=mm.end()){
+                    continue;
+                }else{
+                    set<V> m;
+                    m.insert(*it);
+                    m.insert(*it1);
+                    listCannot.push_back(m);
+                }
+                
+            }
+        }
+        
+    }
+    
+}
+
+void Community_Finder::GenerateCannotLink(vector< vector<V> > clusters, int n, int r)
+{
+    // A temporary array to store all combination one by one
+    vector< vector<V> > temporaryVerctor;
+    // Print all combination using temprary vector 'temporaryVerctor'
+    Combination_CannotLink1(clusters,temporaryVerctor, n, r, 0, 0);
+}
+
+void Community_Finder:: Combination_CannotLink1(vector< vector<V> > clusters ,vector< vector<V> > temporaryVerctor, int n, int r, int index, int i)
+{
+    
+    vector< vector<V> >::iterator iterator = temporaryVerctor.begin();
+    set<V> temporarySet;
+    
+    // Current combination is ready, insert it to mustlink
+    if (index == r)
+    {
+        //temporarySet.insert(temporaryVerctor[j]);
+            Combination_CannotLink2(temporaryVerctor.at(0),temporaryVerctor.at(1));
+       // listMust.push_back(temporarySet);
+        return;
+    }
+    
+    // When no more elements are there to put in temporaryVerctor
+    if (i >= n)
+        return;
+    
+    // current is included, put next at next location
+    temporaryVerctor.insert(temporaryVerctor.begin()+index, clusters.at(i));
+    Combination_CannotLink1(clusters,temporaryVerctor , n, r, index+1, i+1);
+    // current is excluded, replace it with next (Note that
+    // i+1 is passed, but index is not changed)
+    Combination_CannotLink1(clusters,temporaryVerctor, n, r, index, i+1);
+}
+
+void Community_Finder::GenerateMustLink(vector< vector<V> > clusters,vector<V> eachVerctor, int n, int r)
+{
+    // A temporary array to store all combination one by one
+    vector<int> temporaryVerctor;
+    // Print all combination using temprary vector 'temporaryVerctor'
+     Combination_MustLink(clusters,eachVerctor,temporaryVerctor, n, r, 0, 0);
+}
+
+void Community_Finder:: Combination_MustLink(vector< vector<V> > clusters, vector<V> eachVerctor,vector<V> temporaryVerctor, int n, int r, int index, int i)
+{
+    vector<int>::iterator iterator = temporaryVerctor.begin();
+    set<V> temporarySet;
+    
+    // Current combination is ready, insert it to mustlink
+    if (index == r)
+    {
+        for(int j=0; j<r; j++)
+            temporarySet.insert(temporaryVerctor[j]);
+        listMust.push_back(temporarySet);
+        return;
+    }
+    
+    // When no more elements are there to put in temporaryVerctor
+    if (i >= n)
+        return;
+    
+    // current is included, put next at next location
+    temporaryVerctor.insert(temporaryVerctor.begin()+index, eachVerctor[i]);
+    Combination_MustLink(clusters,eachVerctor,temporaryVerctor , n, r, index+1, i+1);
+    // current is excluded, replace it with next (Note that
+    // i+1 is passed, but index is not changed)
+    Combination_MustLink(clusters,eachVerctor,temporaryVerctor, n, r, index, i+1);
+}
+
+
+
 //Responsible for taking the initialised structures, and operating the algorithm on them.
 void Community_Finder::run()
 {
 
-    set<V> m1,m2,m3; //={18,11};
-    m1.insert(8); m1.insert(3);
-    m2.insert(8); m2.insert(20);
-    m3.insert(6); m3.insert(15);
-    
-
-    set<V> c1,c2,c3;
-    c1.insert(20); c1.insert(3);
-    c2.insert(19); c2.insert(15);
-    //c3.insert(23); c3.insert(15);
-
-
-    listMust.push_back(m1);
-    listMust.push_back(m2);
-    listMust.push_back(m3);
-
-    listCannot.push_back(c1);
-    listCannot.push_back(c2);
-   // listCannot.push_back(c3);
-
-    
     // print graph ----------------------------------------------------------------------------------------------------------
-	for (int i = 0; i < theGlobalGraph.vertex_count;i++)
+	/*for (int i = 0; i < theGlobalGraph.vertex_count;i++)
 	{
 		pair <V*,V*> startAndEnd = theGlobalGraph.neighbours(i);
 		cerr << "Neighbours of vertex " << i << " : ";
@@ -135,7 +357,7 @@ void Community_Finder::run()
 			cerr << " " << *otherVertex;
 		}
 		cerr << endl;
-	}
+	}*/
     //-----------------------------------------------------------------------------------------------------------------------
     
 		fprintf(stderr, "%.2fs: ",(double)(clock()-t0)/CLOCKS_PER_SEC);
@@ -144,59 +366,67 @@ void Community_Finder::run()
 		cerr << "Number of seeds: " << this->seeds.size() << endl;
 		sort(this->seeds.begin(),this->seeds.end(),sizeSortFunctionLargestFirst);
     
-		printSeeds();
+		//printSeeds();
     
-    
-//  start processing Must links  --------------------------------------------------------------------------------------------------------
+
+  //start processing Must links  --------------------------------------------------------------------------------------------------------
  
   cerr << "-------------------------------- start processing Must links: " << endl;
     
   for(vector< Seed * >::iterator eachSeed = this->seeds.begin(); eachSeed != this->seeds.end(); ++eachSeed)
     {
-        eachSeedNodes_Mustlink= (*eachSeed)->getNodes();
-        cerr << "-------------------------------- print seed : " << endl;
-        (*eachSeed)->prettyPrint();
+        set<V> eachSeedNodes_Mustlink= (*eachSeed)->getNodes();
+        //cerr << "-------------------------------- print seed : " << endl;
+        //(*eachSeed)->prettyPrint();
         
-    for(vector < set<V> >::iterator eachMustPairSet = this->listMust.begin(); eachMustPairSet != this->listMust.end(); ++eachMustPairSet)
+    for(vector < set<V> >::iterator eachMustPairSet = this->ChosenMust.begin(); eachMustPairSet != this->ChosenMust.end(); ++eachMustPairSet)
         {
             set<V>::iterator it = (*eachMustPairSet).begin();
             advance(it, 0);
             V FirstNode =*it;
-            cerr << "-------------------------------- FirstNode : " << FirstNode << endl;
+            //cerr << "-------------------------------- FirstNode : " << FirstNode << endl;
 
             advance(it, 1);
             V SecNode =*it;
-            cerr << "-------------------------------- SecNode : " << SecNode << endl;
+            //cerr << "-------------------------------- SecNode : " << SecNode << endl;
 
-            
         if( contains(eachSeedNodes_Mustlink,FirstNode) && contains(eachSeedNodes_Mustlink,SecNode))
-        {cerr << "both exist : "  << endl; continue;}else{cerr << "both nodes NOT exist : "  << endl;}
+        {
+            //cerr << "both exist : "  << endl;
+            continue;
+        }else{
+            //cerr << "both nodes NOT exist : "  << endl;
+        }
             
         if( contains(eachSeedNodes_Mustlink,FirstNode) || contains(eachSeedNodes_Mustlink,SecNode))
         {
-                   cerr << "one of them exist : "  << endl;
-                   
+                   //cerr << "one of them exist : "  << endl;
+            
+            
                    (*eachSeed)->addNode(FirstNode);
+           // cerr << "added first : "  << endl;
+
                    (*eachSeed)->addNode(SecNode);
+            //cerr << "added second : "  << endl;
+
+            //cerr << "--------------------------------print seed after adding mustlink nodes : " << endl;
+            //(*eachSeed)->prettyPrint();
                    
-                   cerr << "--------------------------------print seed after adding mustlink nodes : " << endl;
-                   (*eachSeed)->prettyPrint();
+        }else{
                    
-               }else{
-                   
-                   cerr << "NON of them exist  : "  << endl;
-               }
+                   //cerr << "NON of them exist  : "  << endl;
+        }
         }
         
         (*eachSeed)->updateCachedEdgeValuesFromScratch();
         
     }
    
-    cerr << "-------------------------------- end processing Must links: " << endl;
 
+cerr << "-------------------------------- end processing Must links: " << endl;
 // end of processing mustlink code ------------------------------------------------------------------------------------------------------------
-    
-        printSeeds();
+  
+        //printSeeds();
     
 		vector< Seed* > resultsVec;
 		int numberSeedsDiscardedBeforeExpansion = 0;
@@ -209,7 +439,7 @@ void Community_Finder::run()
 		
 		for (vector< Seed * >::iterator seedItr = this->seeds.begin(); seedItr != this->seeds.end(); ++seedItr)
             {
-			(*seedItr)->putIntoNodeToSeedsCache();
+			  (*seedItr)->putIntoNodeToSeedsCache();
                     
                  /*   // print node->seed assignments
                     int count = 0;
@@ -247,12 +477,14 @@ void Community_Finder::run()
 
 				(*seedItr)->updateCachedEdgeValuesFromScratch();
                 (*seedItr)->updateFrontierFromScratch();
-
+                cerr << "-------------------------------- adding best node from frontier: " << endl;
 				//expand to first peak fitness, within threshold
-				while ( (*seedItr)->addBestNodeFromFrontierToSeed(listMust,listCannot) > 0) // add here the check for pw
+				while ( (*seedItr)->addBestNodeFromFrontierToSeed(ChosenMust1,ChosenCannot1) > 0) // add here the check for pw
 				{
                     
 				}
+                cerr << "-------------------------------- end of adding best node from frontier: " << endl;
+
 
 				if( (*seedItr)->getNumberOfNodes() > (theGlobalGraph.vertex_count / 4 ))
 				{
@@ -263,46 +495,65 @@ void Community_Finder::run()
 					}
                 }
       
-                
-cerr << "-------------------------------- start processing Cannot links: " << endl;
 
 //  start processing Cannot links  --------------------------------------------------------------------------------------------------------
+cerr << "-------------------------------- start processing Cannot links: " << endl;
                 
-               eachSeedNodes_Cannotlink = (*seedItr)->getNodes();
-                for(vector < set<V> >::iterator eachCannotPairSet = this->listCannot.begin(); eachCannotPairSet != this->listCannot.end(); ++eachCannotPairSet)
+    set<V> eachSeedNodes_Cannotlink = (*seedItr)->getNodes();
+    
+        for(vector < set<V> >::iterator eachCannotPairSet = this->ChosenCannot.begin(); eachCannotPairSet != this->ChosenCannot.end(); ++eachCannotPairSet)
                     {
+                     
+                if (includes(eachSeedNodes_Cannotlink.begin(),eachSeedNodes_Cannotlink.end(),(*eachCannotPairSet).begin(),(*eachCannotPairSet).end())){
+                    
+                    
+                    set<V>::iterator it = (*eachCannotPairSet).begin();
+                    advance(it, 0);
+                    V FirstNode =*it;
+                    // cerr << "-------------------------------- FirstNode : " << FirstNode << endl;
+                    
+                    advance(it, 1);
+                    V SecNode =*it;
+                    //cerr << "-------------------------------- SecNode : " << SecNode << endl;
+                    
+                    (*seedItr)->RemoveLeastFitnessNodeFromSeed(FirstNode,SecNode);
+
+                
+                
+                  }
                         
+                    /*
                         set<V>::iterator it = (*eachCannotPairSet).begin();
                         advance(it, 0);
                         V FirstNode =*it;
-                        cerr << "-------------------------------- FirstNode : " << FirstNode << endl;
+                       // cerr << "-------------------------------- FirstNode : " << FirstNode << endl;
                         
                         advance(it, 1);
                         V SecNode =*it;
-                        cerr << "-------------------------------- SecNode : " << SecNode << endl;
-
+                        //cerr << "-------------------------------- SecNode : " << SecNode << endl;
+                        
                         
                         if( contains(eachSeedNodes_Cannotlink,FirstNode) && contains(eachSeedNodes_Cannotlink,SecNode))
                         {
                         
                             (*seedItr)->RemoveLeastFitnessNodeFromSeed(FirstNode,SecNode);
                         
+                        }else{
+                            //cerr << "-------------------------------- not in the seed togather  : " << endl;
                         }
-                        
+                        */
                     }
                     
-                (*seedItr) ->updateCachedEdgeValuesFromScratch();
+               // (*seedItr)->updateCachedEdgeValuesFromScratch();
                 
 cerr << "-------------------------------- end processing Cannot links: " << endl;
-
-            
 // end of processing Cannotlink code ------------------------------------------------------------------------------------------------------------
-                
+ 
                 // check for duplicate one
 				alreadyCounted = (*seedItr)->overlapsAlreadyAcceptedSeed();
 				if(!alreadyCounted)
 				{
-				//	cerr << "Was not a duplicate\n";
+				// cerr << "Was not a duplicate\n";
 					//add it to results
 					numberSeedsKept++;
 					resultsVec.push_back((*seedItr));
@@ -509,6 +760,10 @@ void Community_Finder::refreshAllSeedInternalCaches()
 //TODO look up node names in map, here
 void Community_Finder::rawPrint()
 {
+    cerr << " data ="<< a1<<"\n";
+    cerr << " percent ="<< b1<<"\n";
+    cerr << " trail ="<< c1<<"\n";
+
 	for (vector< Seed * >::iterator seedItr = this->seeds.begin(); seedItr != this->seeds.end(); ++seedItr)
 	{
 		//(*seedItr)->rawPrint();

@@ -96,9 +96,9 @@ bool Seed::overlapsAlreadyAcceptedSeed()
 			if(this->overlap(**seedItr) >= Seed::minimumOverlapToMerge)
 			{
 				cerr << "Found an overlap between: " <<endl;
-				this->prettyPrint();
+				//this->prettyPrint();
 				cerr << " and other: "<<endl;
-				(**seedItr).prettyPrint();
+				//(**seedItr).prettyPrint();
 				return true;
 			}
 		}
@@ -132,57 +132,69 @@ float Seed::overlap(Seed & other)
 void Seed::RemoveLeastFitnessNodeFromSeed(V node1, V node2)
 {
     
-    
     pair <int,int> TempPair1 = this->calculateNumberOfInternalAndExternalEdgesForNodeFromScratch(node1);
     pair <int,int> TempPair2 = this->calculateNumberOfInternalAndExternalEdgesForNodeFromScratch(node2);
-   
-    this->NodeInternalAndExternalEdges[node1] = TempPair1;
-    this->NodeInternalAndExternalEdges[node2] = TempPair2;
+    this->NodeInternalAndExternalEdges.insert( pair<V,pair<int,int> >(node1,TempPair1));
+    this->NodeInternalAndExternalEdges.insert( pair<V,pair<int,int> >(node2,TempPair2));
 
+  
+    float highestFitness = this->calculateFitness();
+    //cerr << "Fitness before: " << highestFitness << " \n";
+
+    vector<V> Nodes;
+    Nodes.push_back(node1);
+    Nodes.push_back(node2);
+    
    this->nodes.erase(node1);
    this->nodes.erase(node2);
    this->updateCachedEdgeValuesFromScratch();
-   float highestFitness = this->calculateFitness();
-   
+    highestFitness = 0;
+   //cerr << "Fitness after: " << highestFitness << " \n";
+
+    
+
     V bestNode = -1;
     
-  
-    for (auto element: NodeInternalAndExternalEdges)
+ for(map <V, pair<int,int> >::iterator Itr = NodeInternalAndExternalEdges.begin(); Itr != NodeInternalAndExternalEdges.end(); ++Itr)
     {
-        float tempFitness =  this->calculateFitnessIfInsertFromFrontier(element.second.first,element.second.second );
-
+        float tempFitness =  this->calculateFitnessIfInsertFromFrontier((*Itr).second.first,(*Itr).second.second);
         if(tempFitness > highestFitness)
         {
             //		cerr << "...higher than existing highest fitness" << highestFitness << " \n";
-            bestNode = (element.first);
+            bestNode = ((*Itr).first);
+            //cerr << "bestNode: " << bestNode << " \n";
             highestFitness = tempFitness;
-        }
-        else
+        }else
         {
             //		cerr << "...NOT higher than existing highest fitness" << highestFitness << " \n";
             
         }
+        
     }
-    
+    srand(time(NULL));
     if (bestNode > -1)
     {
         //cerr << "So, adding node: " << bestNode << " to seed\n";
         //Found a node with a better fitness than the threshold.
         this->addnodefromCannotLink(bestNode);
-        
+        //cerr << "best node removed: " << bestNode << " \n";
+
         //DEBUG
         //	this->rawPrint();
         //	this->prettyPrintFrontier();
         //	cerr << "Fitness now, recaclulated: " << this->calculateFitness();
         // return highestFitness;
-    }
-    else
-    {
-        this->addnodefromCannotLink(node1);
+    }else{
+        
+        int Rand = rand() % 2;
+        this->addnodefromCannotLink(Nodes[Rand]);
+        //cerr << "Index : " << Rand << " \n";
+       // cerr << "random node removed: " << Nodes[Rand] << " \n";
+
         //	cerr << "No best node found\n";
         //  return -1;
     }
-  
+    NodeInternalAndExternalEdges.clear();
 }
 //Need a function that adds the best node from the frontier to the seed
 
@@ -190,7 +202,7 @@ void Seed::RemoveLeastFitnessNodeFromSeed(V node1, V node2)
 //It returns the resulting fitness of the seed, or -1 if no node could be added.
 //Requires the new node to increase the fitness.
 
-float Seed::addBestNodeFromFrontierToSeed(vector< set<V> > listMust,vector< set<V> > listCannot)
+float Seed::addBestNodeFromFrontierToSeed(set< set<V> > ChosenMust1,set< set<V> > ChosenCannot1)
 {
 	//search across the possible fitnesses of the frontier.
 	//cerr << "In addBestNodeFromFrontierToSeed for seed: ";
@@ -198,78 +210,157 @@ float Seed::addBestNodeFromFrontierToSeed(vector< set<V> > listMust,vector< set<
 	float highestFitness = this->calculateFitness();
 	//float highestFitness = -1; 
 	V bestNode = -1;
+    set<V> MustNode;
+    bool flageMust= false, flageCannot= false;
 
-	for(map <V,pair<int,int> >::iterator frontierNodeToInternalAndExternalEdgesItr = this->frontierNodeToInternalAndExternalEdges.begin(); frontierNodeToInternalAndExternalEdgesItr != this->frontierNodeToInternalAndExternalEdges.end(); ++frontierNodeToInternalAndExternalEdgesItr)
-	//for( set < V >::iterator frontierItr= this->frontier.begin(); frontierItr != this->frontier.end(); ++frontierItr)
+for(map <V,pair<int,int> >::iterator frontierNodeToInternalAndExternalEdgesItr = this->frontierNodeToInternalAndExternalEdges.begin(); frontierNodeToInternalAndExternalEdgesItr != this->frontierNodeToInternalAndExternalEdges.end(); ++frontierNodeToInternalAndExternalEdgesItr)
 	{
-	//	cerr << "Considering next frontier node...\n";
+    //	cerr << "Considering next frontier node...\n";
 	//	this->prettyPrintFrontier();
 	//	cerr << (*frontierItr);
 		//if ((*frontierItr).second > highestFitness)
 		
 		
 		//This is the main optimisation, right here, where, instead of iterating across (the current Seed Union theNewNode) and calculating each nodes internal and external degree by traversing the nodes edges, and seeing if they are inside or outside the seed - instead we use the cached values of the number of edges that are inside and outside the seed, for each node on the frontier.  This cache can later by updated, as it only changes for those frontier nodes which are connected to the node added to the seed.
-		float tempFitness =  this->calculateFitnessIfInsertFromFrontier((*frontierNodeToInternalAndExternalEdgesItr).second.first,(*frontierNodeToInternalAndExternalEdgesItr).second.second );
+ float tempFitness =  this->calculateFitnessIfInsertFromFrontier((*frontierNodeToInternalAndExternalEdgesItr).second.first,(*frontierNodeToInternalAndExternalEdgesItr).second.second );
 	//	cerr << " with cached fitness: " << tempFitness;
 		if(tempFitness > highestFitness)
 		{
 	//		cerr << "...higher than existing highest fitness" << highestFitness << " \n";
 			bestNode = ((*frontierNodeToInternalAndExternalEdgesItr).first);
 			highestFitness = tempFitness;
-		}
-		else
-		{
-	//		cerr << "...NOT higher than existing highest fitness" << highestFitness << " \n";
+		}else{
+        
+            /*
+        for(set<V>::iterator eachnode= this->nodes.begin(); eachnode != this->nodes.end(); ++eachnode)
+            {
+            for(vector < set<V> >::iterator eachMustPairSet = ChosenMust.begin(); eachMustPairSet != ChosenMust.end(); ++eachMustPairSet)
+                {
+                    if((*eachMustPairSet).find((*frontierNodeToInternalAndExternalEdgesItr).first)!= (*eachMustPairSet).end() && (*eachMustPairSet).find(*eachnode)!= (*eachMustPairSet).end())
+                    {
+                        flageMust=true;
+                     //MustNode=(*frontierNodeToInternalAndExternalEdgesItr).first;
+                        MustNode.insert((*frontierNodeToInternalAndExternalEdgesItr).first);
+                        break;
+                     //this->addNodeFromFrontier((*frontierNodeToInternalAndExternalEdgesItr).first);
+                        cerr << "...has must link add " << " \n";
+                        
+                    }
+                    
+                }
+                
+                if(flageMust){break;};
+            }
+            */
+	     //cerr << "...NOT higher than existing highest fitness" << highestFitness << " \n";
 
 		}
-		
-	}
+    }
+    
 	if (bestNode > -1)
 	{
 	//	cerr << "So, adding node: " << bestNode << " to seed\n";
 		//Found a node with a better fitness than the threshold.
-   
-    bool flageMust= false, flageCannot= false;
-    
+       /* if(flageMust){
+            
+            for(set<V>::iterator eachnode= MustNode.begin(); eachnode != MustNode.end(); ++eachnode)
+            {
+                
+                this->addNodeFromFrontier((*eachnode));
+            }
+            cerr << "...adding must link set " << " \n";
+
+        }
+    */
     //check if it has must link, then add it and return
-    for(set<V>::iterator eachnode= this->nodes.begin(); eachnode != this->nodes.end(); ++eachnode)
+        set< set<V> > must;
+  for(set<V>::iterator eachnode= this->nodes.begin(); eachnode != this->nodes.end(); ++eachnode)
     {
-        for(vector < set<V> >::iterator eachMustPairSet = listMust.begin(); eachMustPairSet != listMust.end(); ++eachMustPairSet)
+        set<V> m;
+        m.insert(*eachnode);
+        m.insert(bestNode);
+
+       
+       
+       if(ChosenMust1.find(m)!= ChosenMust1.end()){
+       
+       flageMust=true;
+       this->addNodeFromFrontier(bestNode);
+       // cerr << "...has must link add and return" << bestNode << " \n";
+       //this->prettyPrint();
+       
+       return highestFitness;
+
+       
+       }
+       
+       
+       /*
+        for(vector < set<V> >::iterator eachMustPairSet = ChosenMust.begin(); eachMustPairSet != ChosenMust.end(); ++eachMustPairSet)
         {
             
             if((*eachMustPairSet).find(bestNode)!= (*eachMustPairSet).end() && (*eachMustPairSet).find(*eachnode)!= (*eachMustPairSet).end())
             {
                 flageMust=true;
                 this->addNodeFromFrontier(bestNode);
-                cerr << "...has must link add and return" << bestNode << " \n";
+               // cerr << "...has must link add and return" << bestNode << " \n";
+                //this->prettyPrint();
 
                 return highestFitness;
             }
         
         }
+       */
     }
-    
-   
+  
+ 
     //check if it has cannot link, then skip it and return
     for(set<V>::iterator eachnode= this->nodes.begin(); eachnode != this->nodes.end(); ++eachnode)
         {
-            for(vector < set<V> >::iterator eachCannotPairSet = listCannot.begin(); eachCannotPairSet != listCannot.end(); ++eachCannotPairSet)
+            set<V> m;
+            m.insert(*eachnode);
+            m.insert(bestNode);
+            
+            
+            
+            if(ChosenCannot1.find(m)!= ChosenCannot1.end()){
+                
+                flageCannot=true;
+                //cerr << "...has cannot link skip and return" << bestNode << " \n";
+                map< V,pair<int,int> >::iterator it;
+                it=frontierNodeToInternalAndExternalEdges.find(bestNode);
+                frontierNodeToInternalAndExternalEdges.erase(it);
+                //this->updateFrontierFromScratch();
+                //this->prettyPrint();
+                return highestFitness;
+                
+                
+            }
+
+            
+            
+            /*
+            for(vector < set<V> >::iterator eachCannotPairSet = ChosenCannot.begin(); eachCannotPairSet != ChosenCannot.end(); ++eachCannotPairSet)
             {
                     if((*eachCannotPairSet).find(bestNode)!= (*eachCannotPairSet).end() && (*eachCannotPairSet).find(*eachnode)!= (*eachCannotPairSet).end())
                     {
                         flageCannot=true;
-                        cerr << "...has cannot link skip and return" << bestNode << " \n";
-                        return -1;
+                        //cerr << "...has cannot link skip and return" << bestNode << " \n";
+                        map< V,pair<int,int> >::iterator it;
+                        it=frontierNodeToInternalAndExternalEdges.find(bestNode);
+                        frontierNodeToInternalAndExternalEdges.erase(it);
+                        //this->updateFrontierFromScratch();
+                        //this->prettyPrint();
+                        return highestFitness;
                     }
                     
                 }
+             */
                 
         }
-    
-    
-        cerr << "...not must nor cannot link, add and return" << bestNode << " \n";
-
+    //cerr << "...not must , add and return" << bestNode << " \n";
     this->addNodeFromFrontier(bestNode);
+    //this->prettyPrint();
     return highestFitness;
         
     //this->addNodeFromFrontier(bestNode);
@@ -280,12 +371,22 @@ float Seed::addBestNodeFromFrontierToSeed(vector< set<V> > listMust,vector< set<
 	
 	}
 	else
-	{
+        /*if(flageMust){
+            
+            for(set<V>::iterator eachnode= MustNode.begin(); eachnode != MustNode.end(); ++eachnode)
+            {
+             
+                this->addNodeFromFrontier((*eachnode));
+            }
         
-        
-	cerr << "No best node found\n";
 		return -1;
-	}
+    }else
+    */
+    {
+        
+        //cerr << "No best node found\n";
+        return -1;
+    }
 }
 
 
@@ -293,14 +394,18 @@ float Seed::addBestNodeFromFrontierToSeed(vector< set<V> > listMust,vector< set<
 //This dirties the caches.
 void Seed::addNode(V newNode)
 {
-	this->nodesInOrderOfAddition.push_back(newNode);
+	//this->nodesInOrderOfAddition.push_back(newNode);
+    this->nodesInOrderOfAddition.insert(newNode);
 	this->nodes.insert(newNode);
 	(nodeToSeeds[newNode]).insert(this);
+
 }
 
 void Seed::addNodeNoCaching(V newNode)
 {
-	this->nodesInOrderOfAddition.push_back(newNode);
+	//this->nodesInOrderOfAddition.push_back(newNode);
+    this->nodesInOrderOfAddition.insert(newNode);
+
 	this->nodes.insert(newNode);
 }
 
@@ -387,8 +492,7 @@ void Seed::addNodeFromFrontier(V newNode)
 			if(this->contains(otherNode))
 			{
 	//			cerr << " was already in seed. ";
-								
-
+						
 				//float theFitness = this->calculateFitnessIfInsertFromFrontier(otherNode);
 				//cerr << " so new fitness, on frontier, for " << otherNode << " would be: " << theFitness;
 				//this->frontierNodeToFitness[otherNode] = theFitness;
@@ -445,7 +549,7 @@ void Seed::addNodeFromFrontier(V newNode)
 void Seed::updateFrontierFromScratch()
 {
 	cerr << "Updating frontier from scratch for seed: " << endl;
-	this->prettyPrint();
+	//this->prettyPrint();
 
 	this->frontierNodeToInternalAndExternalEdges.clear();
 	//this->frontier.clear();
@@ -484,7 +588,7 @@ void Seed::updateFrontierFromScratch()
 		
 	}
 	cerr << "Frontier now is: " << endl;
-	this->prettyPrintFrontier();
+	//this->prettyPrintFrontier();
 }
 
 //Update the number of internal and external edges currently in the seed
@@ -655,11 +759,17 @@ void Seed::prettyPrintFrontier()
 
 void Seed::rawPrintInOrderOfAddition()
 {
-	for(vector<V>::iterator innerSeedItr= this->nodesInOrderOfAddition.begin(); innerSeedItr != this->nodesInOrderOfAddition.end(); ++innerSeedItr)
+    //outputFile.open("XXXXX.dat");
+   for(set<V>::iterator innerSeedItr= this->nodesInOrderOfAddition.begin(); innerSeedItr != this->nodesInOrderOfAddition.end(); ++innerSeedItr)
 	{
+       // outputFile << theGlobalGraph.name_of_one_node_asString((*innerSeedItr)) << " " <<endl;
 		cout << theGlobalGraph.name_of_one_node_asString((*innerSeedItr)) << " ";
 	}
 	cout << endl;
+
+    
+    //outputFile.close();
+    
 
 
 }

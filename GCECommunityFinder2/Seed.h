@@ -12,6 +12,9 @@
 #include <map>
 #include <math.h>
 #include <algorithm>
+#include <time.h>
+#include <iostream>
+#include <fstream>
 //This class operates on a single representation of the graph, expected to be in global variable g
 extern SimpleIntGraph theGlobalGraph;
 
@@ -41,7 +44,7 @@ public:
 	bool contains(V theNode);
 	bool isEqualTo(Seed & other);
 	bool frontierContains(V theNode);
-	float addBestNodeFromFrontierToSeed(vector< set<V> > listMust, vector< set<V> > listCannot);
+	float addBestNodeFromFrontierToSeed(set< set<V> > ChosenMust1, set< set<V> > ChosenCannot1);
     void RemoveLeastFitnessNodeFromSeed(V node1, V node2);
     void  addnodefromCannotLink(V newNode);
 	//accessor methods
@@ -73,12 +76,12 @@ private:
 	//This vector will be sorted.
 	set<V> nodes;
 
-	vector <V> nodesInOrderOfAddition;
+	set <V> nodesInOrderOfAddition;
 	int internalEdges ;
 	int externalEdges ;
 
 	bool cachesDirty;
-
+    bool flage;
 	//Store the internal and external edges of each node that is in the frontier of the seed.
 	map <V, pair<int,int> > frontierNodeToInternalAndExternalEdges;
 	//Need a map of node to fitness for the frontier.

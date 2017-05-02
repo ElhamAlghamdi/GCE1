@@ -38,12 +38,16 @@ public:
 	vector< vector<V> > cliques;
     vector< set<V> > listMust;
     vector< set<V> > listCannot;
-    set<V> eachSeedNodes_Mustlink;
-    set<V> eachSeedNodes_Cannotlink;
+    vector< set<V> > ChosenMust;
+    vector< set<V> > ChosenCannot;
+    
+    set< set<V> > ChosenMust1;
+    set< set<V> > ChosenCannot1;
+
     set<V> seednodes;
     set<V> markednodesMustlink;
     set<V> markednodesCannotlink;
-
+    string a1, b1, c1;
 	int removeOverlappingFast();
 	int removeOverlapping();
 	vector< Seed* > seeds;
@@ -52,6 +56,14 @@ public:
 	void printSeeds();
 	void refreshAllSeedInternalCaches();
 	void run();
+    void ProcessConstraints();
+    bool IsPaireExist(set<V> Pair, vector< set<V> > Constraints);
+    void ChooseConstraints(int percentMust, int percentCannot );
+    void Combination_CannotLink2(vector<V> vec, vector<V> vec2);
+    void GenerateCannotLink(vector< vector<V> > clusters, int n, int r);
+    void Combination_CannotLink1(vector< vector<V> > clusters, vector< vector<V> > temporaryVerctor, int n, int r, int index, int i);
+    void Combination_MustLink(vector< vector<V> > clusters,vector<V> eachVerctor,vector<V> temporaryVerctor, int n, int r, int index, int i);
+    void GenerateMustLink(vector< vector<V> > clusters,vector<V> vec, int n, int r);
 	void operator () (const vector<V> & clique);
 	Community_Finder(const char * filename, int minimumCliqueSize, float minimumOverlapToMerge, float alphaValueForFitness, float numberOfTimesRequiredToBeSpokenFor, float spokenForThresholdOfUniqueness);
 	virtual ~Community_Finder();
